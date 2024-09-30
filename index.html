@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+            integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+            crossorigin="anonymous">
+        <title>Sudoku Solver</title>
+    </head>
+
+    <body>
+
+        <div class="container-fluid">
+            <div class="row">
+                <h1 class="text-center mt-5">Sudoku Solver</h1>
+                <div class="col d-flex justify-content-center">
+                    <form id="sudokuForm">
+                        <table class="mt-5" id="sudokuGrid">
+                            <!-- 9x9 Grid will be dynamically generated -->
+                        </table>
+                        <br>
+                        <button class="btn btn-success" type="button"
+                            onclick="solve()">Solve</button>
+                        <div class="btn btn-danger" id="reset">Reset</div>
+                        <p id="error-message" class="text-danger"></p>
+                        <!-- Error message placeholder -->
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        // Function to dynamically create Sudoku grid input cells
+        function createSudokuGrid() {
+            const table = document.getElementById('sudokuGrid');
+            for (let row = 0; row < 9; row++) {
+                let tr = document.createElement('tr');
+                for (let col = 0; col < 9; col++) {
+                    let td = document.createElement('td');
+                    let input = document.createElement('input');
+                    input.type = 'text';
+                    input.maxLength = '1';
+                    input.name = `cell_${row}_${col}`;
+                    td.appendChild(input);
+                    tr.appendChild(td);
+                    // Add input event listener for real-time validation
+                    input.addEventListener('input', validateInput);
+                }
+                table.appendChild(tr);
+            }
+        }
+
+        // Initial grid creation on page load
+        window.onload = createSudokuGrid;
+
+        // Real-time input validation to ensure only numbers between 1-9 are entered
+        function validateInput(event) {
+            const input = event.target;
+            const value = input.value;
+
+            // Check if the value is not a digit or out of range
+            if (!/^[1-9]$/.test(value)) {
+                input.value = ""; // Clear invalid input
+                displayError("Only numbers between 1 and 9 are allowed.");
+            } else {
+                displayError(""); // Clear error if valid input
+            }
+        }
+
+        // Utility function to check if a number can be placed at a given position
+        function isValid(grid, row, col, num) {
+            for (let x = 0; x < 9; x++) {
+                if (grid[row][x] == num || grid[x][col] == num) {
+                    return false;
+                }
+            }
+
+            const startRow = row - row % 3;
+            const startCol = col - col % 3;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (grid[i + startRow][j + startCol] == num) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        // Function to solve the Sudoku
+        function solveSudoku(grid) {
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    if (grid[row][col] == 0) {
+                        for (let num = 1; num <= 9; num++) {
+                            if (isValid(grid, row, col, num)) {
+                                grid[row][col] = num;
+
+                                if (solveSudoku(grid)) {
+                                    return true;
+                                }
+
+                                grid[row][col] = 0;
+                            }
+                        }
+                        return false; // Backtracking if no valid number is found
+                    }
+                }
+            }
+            return true; // If all cells are filled
+        }
+
+        // Function to get the grid input values and validate the input before solving
+        function solve() {
+            const grid = [];
+            for (let row = 0; row < 9; row++) {
+                grid[row] = [];
+                for (let col = 0; col < 9; col++) {
+                    const input = document.querySelector(`input[name=cell_${row}_${col}]`);
+                    const value = input.value ? parseInt(input.value) : 0;
+                    grid[row][col] = value;
+                }
+            }
+
+            // Validate the grid before solving
+            if (!validateGrid(grid)) {
+                displayError("Invalid input: Duplicate numbers found in rows, columns, or grids.");
+                return;
+            }
+
+            // Try to solve the Sudoku
+            if (solveSudoku(grid)) {
+                displayError(""); // Clear any previous error
+                for (let row = 0; row < 9; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const input = document.querySelector(`input[name=cell_${row}_${col}]`);
+                        input.value = grid[row][col];
+                    }
+                }
+            } else {
+                displayError("No solution exists for the given puzzle.");
+            }
+        }
+
+        // Function to validate the Sudoku grid for duplicates in rows, columns, or grids
+        function validateGrid(grid) {
+            // Check each row, column, and 3x3 grid for duplicates
+            for (let i = 0; i < 9; i++) {
+                let rowSet = new Set();
+                let colSet = new Set();
+                let gridSet = new Set();
+                for (let j = 0; j < 9; j++) {
+                    // Check row
+                    if (grid[i][j] != 0) {
+                        if (rowSet.has(grid[i][j])) return false;
+                        rowSet.add(grid[i][j]);
+                    }
+
+                    // Check column
+                    if (grid[j][i] != 0) {
+                        if (colSet.has(grid[j][i])) return false;
+                        colSet.add(grid[j][i]);
+                    }
+
+                    // Check 3x3 grid
+                    let rowIndex = 3 * Math.floor(i / 3) + Math.floor(j / 3);
+                    let colIndex = 3 * (i % 3) + (j % 3);
+                    if (grid[rowIndex][colIndex] != 0) {
+                        if (gridSet.has(grid[rowIndex][colIndex])) return false;
+                        gridSet.add(grid[rowIndex][colIndex]);
+                    }
+                }
+            }
+            return true;
+        }
+
+        // Function to display error messages
+        function displayError(message) {
+            document.getElementById("error-message").innerText = message;
+        }
+
+        // Function to clear the grid
+        function clearCells() {
+            const inputs = document.querySelectorAll("input");
+            inputs.forEach(input => input.value = "");
+            displayError(""); // Clear any previous error
+        }
+
+        // Reset button functionality
+        document.getElementById("reset").addEventListener("click", clearCells);
+    </script>
+
+        <style>
+        table {
+            border-collapse: collapse;
+            width: 300px;
+            height: 300px;
+            text-align: center;
+        }
+
+        td {
+            border: 1px solid black;
+            width: 33px;
+            height: 33px;
+            font-size: 20px;
+        }
+
+        input {
+            width: 80%;
+            height: 100%;
+            text-align: center;
+            font-size: 20px;
+            border: none;
+        }
+    </style>
+
+    </body>
+
+</html>
